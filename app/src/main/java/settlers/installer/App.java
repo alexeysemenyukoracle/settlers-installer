@@ -391,6 +391,7 @@ public class App extends javax.swing.JFrame {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
+                    log.debug("Started installing from {} to {}", srcDir, Util.getDataFolder());
                     try {
                         if (Util.isGameFolder(srcDir)) {
                             log.debug("Want to copy files...");
