@@ -1130,8 +1130,14 @@ public class Util {
     }
     
     private static boolean copyGameDataIfExists(File src, File dst, String subfolder) throws IOException {
+        log.debug("copyGameDataIfExists({}, {}, {})", src, dst, subfolder);
+        
         File s2 = new File(src, subfolder);
         File d2 = new File(dst, subfolder);
+        
+        if (!d2.isDirectory()) {
+            d2.mkdirs();
+        }
         
         if (s2.isDirectory()) {
             FileUtils.copyDirectory(s2, d2);        

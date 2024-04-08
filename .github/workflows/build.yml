@@ -31,11 +31,12 @@ jobs:
         id: gitversion
         uses: gittools/actions/gitversion/execute@v0
 
-      - id: output1
+      - name: "Verify variables"
+        id: output1
         run: |
           set -x
           set | grep GITVERSION | sort
-          echo "GITVERSION_SEMVER=${GITVERSION_SEMVER}" >> "$GITHUB_OUTPUT"
+          echo "GITVERSION_SEMVER=${GitVersion_SemVer}" >> "$GITHUB_OUTPUT"
           echo "GITVERSION_ASSEMBLYSEMVER=${GITVERSION_ASSEMBLYSEMVER}" >> "$GITHUB_OUTPUT"
           echo "GITVERSION_MAJORMINORPATCH=${GITVERSION_MAJORMINORPATCH}" >> "$GITHUB_OUTPUT"
           echo "GITVERSION_MAJOR=${GITVERSION_MAJOR}" >> "$GITHUB_OUTPUT"
