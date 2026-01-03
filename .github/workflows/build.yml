@@ -79,7 +79,7 @@ jobs:
         run: |
           find .
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: settlers-installer-generic
           path: ./app/build/distributions/*
@@ -106,7 +106,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Download settlers-installer-generic
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: settlers-installer-generic
           path: app/build/distributions
@@ -173,7 +173,7 @@ jobs:
           set -x
           find .
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: SettlersRemake-Debian
           path: |
@@ -200,7 +200,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Download settlers-installer-generic
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: settlers-installer-generic
           path: app/build/distributions
@@ -269,7 +269,7 @@ jobs:
           Get-ChildItem -Recurse app/build/distributions
           Get-ChildItem -Recurse app/build/resources
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: SettlersRemake-Windows
           path: app/build/distributions/*.exe
@@ -296,7 +296,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Download settlers-installer-generic
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: settlers-installer-generic
           path: app/build/distributions
@@ -363,7 +363,7 @@ jobs:
         run: |
           find .
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: SettlersRemake-MacOS
           path: app/build/distributions/*.dmg
@@ -377,7 +377,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
 
       - name: check environment after download
         run: |
