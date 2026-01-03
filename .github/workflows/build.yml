@@ -128,7 +128,6 @@ jobs:
         run: |
           set -x
           jpackage \
-            --verbose \
             --type app-image \
             --dest app/build/app-image \
             -i "app/build/jpackage_input/app-${GITVERSION_SEMVER}/lib" \
@@ -161,7 +160,6 @@ jobs:
         run: |
           set -x
           jpackage \
-            --verbose \
             --app-image app/build/app-image/SettlersRemake \
             --name SettlersRemake \
             --dest app/build/distributions \
@@ -230,7 +228,7 @@ jobs:
         run: |
           # PowerShell
           Set-PSDebug -Trace 1
-          jpackage --verbose --type app-image --dest app/build/app-image -i "app/build/jpackage_input/app-${{ needs.semver.outputs.GITVERSION_SEMVER }}/lib" --main-jar "app-${{ needs.semver.outputs.GITVERSION_SEMVER }}.jar" --main-class settlers.installer.App --name SettlersRemake --app-version "${{ needs.semver.outputs.GITVERSION_MAJORMINORPATCH }}" --description 'Settlers 3 remake - see https://github.com/HiranChaudhuri/settlers-installer' --vendor Hiran, --icon "app/src/main/resources/images/siedler3-helme-logo.ico" --resource-dir "app/build/resources/jpackage" --jlink-options "--strip-debug --no-man-pages --no-header-files"
+          jpackage --type app-image --dest app/build/app-image -i "app/build/jpackage_input/app-${{ needs.semver.outputs.GITVERSION_SEMVER }}/lib" --main-jar "app-${{ needs.semver.outputs.GITVERSION_SEMVER }}.jar" --main-class settlers.installer.App --name SettlersRemake --app-version "${{ needs.semver.outputs.GITVERSION_MAJORMINORPATCH }}" --description 'Settlers 3 remake - see https://github.com/HiranChaudhuri/settlers-installer' --vendor Hiran, --icon "app/src/main/resources/images/siedler3-helme-logo.ico" --resource-dir "app/build/resources/jpackage" --jlink-options "--strip-debug --no-man-pages --no-header-files"
 
       - name: Check after app-image creation
         run: |
@@ -258,7 +256,7 @@ jobs:
       - name: Build package
         run: |
           # PowerShell
-          jpackage --verbose --app-image app/build/app-image/SettlersRemake --name SettlersRemake --app-version "${{ needs.semver.outputs.GITVERSION_MAJORMINORPATCH }}" --dest app/build/distributions --resource-dir app/build/resources/jpackage --win-shortcut
+          jpackage --app-image app/build/app-image/SettlersRemake --name SettlersRemake --app-version "${{ needs.semver.outputs.GITVERSION_MAJORMINORPATCH }}" --dest app/build/distributions --resource-dir app/build/resources/jpackage --win-shortcut
 
       - name: Check after app-image creation
         run: |
@@ -322,7 +320,6 @@ jobs:
           set -x
           pushd .;cd app/build/jpackage_input;unzip ../distributions/*.zip;popd
           jpackage \
-            --verbose \
             --type app-image \
             --dest app/build/app-image \
             -i "app/build/jpackage_input/app-${{ needs.semver.outputs.GITVERSION_SEMVER }}/lib" \
@@ -352,7 +349,6 @@ jobs:
         run: |
           set -x
           jpackage \
-            --verbose \
             --app-image app/build/app-image/SettlersRemake.app \
             --name SettlersRemake \
             --app-version "${{ needs.semver.outputs.MACOS_MAJORMINORPATCH }}" \
