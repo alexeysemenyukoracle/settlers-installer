@@ -368,7 +368,7 @@ jobs:
           name: SettlersRemake-MacOS
           path: app/build/distributions/*.dmg
 
-  release:
+  download-artifacts:
     needs:
       - semver
       - package-Windows
@@ -378,23 +378,3 @@ jobs:
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
-
-      - name: check environment after download
-        run: |
-          printenv | sort
-          echo "version=v${{ needs.semver.outputs.GITVERSION_SEMVER }}"
-          find .
-
-      - name: Publish Release
-        id: publish_release
-        uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "v${{ needs.semver.outputs.GITVERSION_SEMVER }}"
-          prerelease: ${{github.ref != 'refs/heads/main'}}
-          title: "Settlers-Installer ${{ needs.semver.outputs.GITVERSION_SEMVER }}"
-          files: |
-            SettlersRemake-Windows/*.exe
-            SettlersRemake-MacOS/*.dmg
-            SettlersRemake-Debian/*.deb
-            settlers-installer-generic/*
