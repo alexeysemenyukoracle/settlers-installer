@@ -66,36 +66,6 @@ tasks.named('test') {
 
 import org.apache.tools.ant.filters.ReplaceTokens
 
-// create control, postinst and desktop files for Debian builds
-task filterResourcesCopy1(type: Copy) {
-    //outputs.dir('build/resources/jpackage')
-    doNotTrackState("We just generate additional files")
-
-    doFirst {
-        layout.buildDirectory.dir('resources/jpackage')
-    }
-
-    from('src/jpackage/resources') {
-        filter(ReplaceTokens, tokens: [
-            APPLICATION_NAME: "${APPNAME} ${version}".toString(), 
-            APPLICATION_VERSION: "${version}".toString(), 
-            APPLICATION_DESCRIPTION: 'Wrapper project settlers-installer to easily use settlers-remake. See https://github.com/HiranChaudhuri/settlers-installer',
-            APPLICATION_LAUNCHER: ("/opt/" + "${APPNAME}".toLowerCase() + "/bin/${APPNAME}").toString(),
-            APPLICATION_ICON: ("/opt/" + "${APPNAME}".toLowerCase() + "/lib/${APPNAME}.png").toString(),
-            DEPLOY_BUNDLE_CATEGORY: "Game".toString(),
-            DESKTOP_MIMES: '',
-            APPLICATION_StartupWMClass: 'settlers-installer-App',
-            PACKAGE_NAME_LOWER: "${APPNAME}".toString().toLowerCase(),
-            PACKAGE_NAME_NORMAL: "${APPNAME}".toString()
-        ])
-    }
-    into layout.buildDirectory.dir('resources/jpackage')
-    
-    doLast {
-        assert file("build/resources/jpackage/control").exists()
-    }
-}
-
 // Create PKGINFO for Arch build
 task filterResourcesCopy2(type: Copy) {
     //outputs.dir('build/resources/arch')
@@ -145,7 +115,7 @@ task jpackagePrepare(type: Copy, dependsOn: ['distZip']) {
     }
 }
 
-task jpackagePhase1(type: Exec, dependsOn: ['jpackagePrepare', 'filterResourcesCopy1', 'filterResourcesCopy2']) {
+task jpackagePhase1(type: Exec, dependsOn: ['jpackagePrepare', 'filterResourcesCopy2']) {
     doFirst {
          exec {
              workingDir "."
@@ -162,7 +132,7 @@ task jpackagePhase1(type: Exec, dependsOn: ['jpackagePrepare', 'filterResourcesC
 }
 
 // depend from creating jpackage resources, then copy desktop file
-task jpackageInterfere(type: Copy, dependsOn: ['filterResourcesCopy1', 'filterResourcesCopy2']) {
+task jpackageInterfere(type: Copy, dependsOn: ['filterResourcesCopy2']) {
     //outputs.dir('build/app-image/SettlersRemake/lib')
     doNotTrackState("We just generate additional files")
 
@@ -195,7 +165,7 @@ task jpackagePhase2(type: Exec, dependsOn: ['jpackagePhase1', 'jpackageInterfere
     }
 }
 
-task jpackage(description: "Build native installation package", dependsOn: ['jpackagePhase1', 'filterResourcesCopy1', 'filterResourcesCopy2', 'jpackagePhase2']) {
+task jpackage(description: "Build native installation package", dependsOn: ['jpackagePhase1', 'filterResourcesCopy2', 'jpackagePhase2']) {
     doLast {
          exec {
              workingDir "."

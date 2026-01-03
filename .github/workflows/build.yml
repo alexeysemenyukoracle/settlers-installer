@@ -7,6 +7,8 @@ on:
 jobs:
   semver:
     runs-on: ubuntu-latest
+    environment: 
+      name: main
     outputs:
       GITVERSION_SEMVER: ${{ steps.output1.outputs.GITVERSION_SEMVER }}
       GITVERSION_ASSEMBLYSEMVER: ${{ steps.output1.outputs.GITVERSION_ASSEMBLYSEMVER }}
@@ -14,8 +16,10 @@ jobs:
       GITVERSION_MAJOR: ${{ steps.output1.outputs.GITVERSION_MAJOR }}
       GITVERSION_MINOR: ${{ steps.output1.outputs.GITVERSION_MINOR }}
       GITVERSION_PATCH: ${{ steps.output1.outputs.GITVERSION_PATCH }}
-      MACOS_MAJORMINORPATCH: ${{ steps.output1.outputs.MACOS_MAJORMINORPATCH }}
-      DEBIAN_PKGVERSION: ${{ steps.output1.outputs.DEBIAN_PKGVERSION }}
+      APP_VERSION_MACOS: ${{ steps.output1.outputs.APP_VERSION_MACOS }}
+      APP_VERSION_DEBIAN: ${{ steps.output1.outputs.APP_VERSION_DEBIAN }}
+      APP_VERSION_WINDOWS: ${{ steps.output1.outputs.APP_VERSION_WINDOWS }}
+      JPACKAGE_VERBOSE_OPTION: ${{ steps.output1.outputs.JPACKAGE_VERBOSE_OPTION == '' && null || steps.output1.outputs.JPACKAGE_VERBOSE_OPTION }}
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -42,21 +46,23 @@ jobs:
           echo "GITVERSION_MAJOR=${GitVersion_Major}" >> "$GITHUB_OUTPUT"
           echo "GITVERSION_MINOR=${GitVersion_Minor}" >> "$GITHUB_OUTPUT"
           echo "GITVERSION_PATCH=${GitVersion_Patch}" >> "$GITHUB_OUTPUT"
-          echo "DEBIAN_PKGVERSION=${GitVersion_Major}.${GitVersion_Minor}-${GitVersion_Patch}" >> "$GITHUB_OUTPUT"
           if [ "${GitVersion_Major}" == "0" ]
           then
-            echo "MACOS_MAJORMINORPATCH=1.${GitVersion_Minor}.${GitVersion_Patch}" >> "$GITHUB_OUTPUT"
+            echo "APP_VERSION_MACOS=1.${GitVersion_Minor}.${GitVersion_Patch}" >> "$GITHUB_OUTPUT"
           else
-            echo "MACOS_MAJORMINORPATCH=${GitVersion_MajorMinorPatch}" >> "$GITHUB_OUTPUT"
+            echo "APP_VERSION_MACOS=${GitVersion_MajorMinorPatch}" >> "$GITHUB_OUTPUT"
           fi
-          echo "DEBIAN_PKGVERSION=${GitVersion_Major}.${GitVersion_Minor}-${GitVersion_Patch}" >> "$GITHUB_OUTPUT"
+          echo "APP_VERSION_DEBIAN=${GitVersion_MajorMinorPatch}" >> "$GITHUB_OUTPUT"
+          echo "APP_VERSION_WINDOWS=${GitVersion_MajorMinorPatch}" >> "$GITHUB_OUTPUT"
+          if [ '${{ vars.JPACKAGE_VERBOSE }}' == 'true' ]; then
+            echo "JPACKAGE_VERBOSE_OPTION=--verbose" >> "$GITHUB_OUTPUT"
+          else
+            echo "JPACKAGE_VERBOSE_OPTION=" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     needs: semver
     runs-on: ubuntu-latest
-    env:
-      GITVERSION_SEMVER: ${{ needs.semver.outputs.GITVERSION_SEMVER }}
-
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
@@ -73,7 +79,7 @@ jobs:
         run: |
           set -x
           printenv | sort
-          ./gradlew -Pversion=${GITVERSION_SEMVER} --info build
+          ./gradlew "-Pversion=${{ needs.semver.outputs.GITVERSION_SEMVER }}" --info build
 
       - name: Check after gradle build
         run: |
@@ -89,20 +95,18 @@ jobs:
       - semver
       - build
     runs-on: ubuntu-latest
-    env:
-      GITVERSION_SEMVER: ${{ needs.semver.outputs.GITVERSION_SEMVER }}
-      DEBIAN_PKGVERSION: ${{ needs.semver.outputs.DEBIAN_PKGVERSION }}
-
     steps:
       - name: Checkout project
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Setup JDK 17
+      - name: Setup JDKs
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: |
+            17
+            25
           distribution: 'temurin'
 
       - name: Download settlers-installer-generic
@@ -127,15 +131,16 @@ jobs:
       - name: Prepare app-image using JPackage
         run: |
           set -x
-          jpackage \
+          JAVA_HOME_ENV_VAR_NAME=JAVA_HOME_25_${RUNNER_ARCH}
+          ${!JAVA_HOME_ENV_VAR_NAME}/bin/jpackage \
+            ${{ needs.semver.outputs.JPACKAGE_VERBOSE_OPTION }} \
             --type app-image \
             --dest app/build/app-image \
-            -i "app/build/jpackage_input/app-${GITVERSION_SEMVER}/lib" \
-            --main-jar "app-${GITVERSION_SEMVER}.jar" \
+            -i "app/build/jpackage_input/app-${{ needs.semver.outputs.GITVERSION_SEMVER }}/lib" \
+            --main-jar "app-${{ needs.semver.outputs.GITVERSION_SEMVER }}.jar" \
             --main-class settlers.installer.App \
             --name SettlersRemake \
-            --app-version ${DEBIAN_PKGVERSION} \
-            --description 'Settlers 3 remake - see https://github.com/HiranChaudhuri/settlers-installer' \
+            --app-version "${{ needs.semver.outputs.APP_VERSION_DEBIAN }}" \
             --vendor Hiran \
             --icon "./app/src/main/resources/images/siedler3-helme-logo.png" \
             --resource-dir "app/build/resources/jpackage" \
@@ -149,7 +154,8 @@ jobs:
       - name: Modify app-image
         run: |
           set -x
-          ./gradlew -Pversion=${GITVERSION_SEMVER} --info filterResourcesCopy1 filterResourcesCopy2 jpackageInterfere
+          JAVA_HOME_ENV_VAR_NAME=JAVA_HOME_17_${RUNNER_ARCH}
+          JAVA_HOME=${!JAVA_HOME_ENV_VAR_NAME} ./gradlew "-Pversion=${{ needs.semver.outputs.GITVERSION_SEMVER }}" --info filterResourcesCopy2 jpackageInterfere
 
       - name: Check after modification app-image
         run: |
@@ -159,12 +165,16 @@ jobs:
       - name: Build Debian package
         run: |
           set -x
-          jpackage \
+          JAVA_HOME_ENV_VAR_NAME=JAVA_HOME_25_${RUNNER_ARCH}
+          ${!JAVA_HOME_ENV_VAR_NAME}/bin/jpackage --version
+          ${!JAVA_HOME_ENV_VAR_NAME}/bin/jpackage \
+            ${{ needs.semver.outputs.JPACKAGE_VERBOSE_OPTION }} \
             --app-image app/build/app-image/SettlersRemake \
-            --name SettlersRemake \
             --dest app/build/distributions \
             --resource-dir app/build/resources/jpackage \
-            --app-version "${DEBIAN_PKGVERSION}"
+            --linux-package-deps "unshield, wmctrl, dir2ogg" \
+            --linux-app-category games \
+            --description 'Settlers 3 remake - see https://github.com/HiranChaudhuri/settlers-installer'
 
       - name: Check after building debian package
         run: |
@@ -182,19 +192,17 @@ jobs:
       - semver
       - build
     runs-on: windows-latest
-    env:
-      GITVERSION_SEMVER: ${{ needs.semver.outputs.GITVERSION_SEMVER }}
-      GITVERSION_MAJORMINORPATCH: ${{ needs.semver.outputs.GITVERSION_MAJORMINORPATCH }}
-
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Setup JDK 17
+      - name: Setup JDKs
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: |
+            17
+            25
           distribution: 'temurin'
 
       - name: Download settlers-installer-generic
@@ -228,7 +236,22 @@ jobs:
         run: |
           # PowerShell
           Set-PSDebug -Trace 1
-          jpackage --type app-image --dest app/build/app-image -i "app/build/jpackage_input/app-${{ needs.semver.outputs.GITVERSION_SEMVER }}/lib" --main-jar "app-${{ needs.semver.outputs.GITVERSION_SEMVER }}.jar" --main-class settlers.installer.App --name SettlersRemake --app-version "${{ needs.semver.outputs.GITVERSION_MAJORMINORPATCH }}" --description 'Settlers 3 remake - see https://github.com/HiranChaudhuri/settlers-installer' --vendor Hiran, --icon "app/src/main/resources/images/siedler3-helme-logo.ico" --resource-dir "app/build/resources/jpackage" --jlink-options "--strip-debug --no-man-pages --no-header-files"
+          $JAVA_HOME=[System.Environment]::GetEnvironmentVariable("JAVA_HOME_25_${env:RUNNER_ARCH}")
+          & ${JAVA_HOME}\bin\jpackage --version
+          & ${JAVA_HOME}\bin\jpackage `
+            ${{ needs.semver.outputs.JPACKAGE_VERBOSE_OPTION }} `
+            --type app-image `
+            --dest app/build/app-image `
+            -i "app/build/jpackage_input/app-${{ needs.semver.outputs.GITVERSION_SEMVER }}/lib" `
+            --main-jar "app-${{ needs.semver.outputs.GITVERSION_SEMVER }}.jar" `
+            --main-class settlers.installer.App `
+            --name SettlersRemake `
+            --app-version "${{ needs.semver.outputs.APP_VERSION_WINDOWS }}" `
+            --description 'Settlers 3 remake - see https://github.com/HiranChaudhuri/settlers-installer' `
+            --vendor Hiran `
+            --icon "app/src/main/resources/images/siedler3-helme-logo.ico" `
+            --resource-dir "app/build/resources/jpackage" `
+            --jlink-options "--strip-debug --no-man-pages --no-header-files"
 
       - name: Check after app-image creation
         run: |
@@ -242,7 +265,9 @@ jobs:
       - name: Modify app-image
         run: |
           # PowerShell
-          ./gradlew "-Pversion=${{ needs.semver.outputs.GITVERSION_SEMVER }}" --info filterResourcesCopy1 filterResourcesCopy2 jpackageInterfere
+          Set-PSDebug -Trace 1
+          $env:JAVA_HOME=[System.Environment]::GetEnvironmentVariable("JAVA_HOME_17_${env:RUNNER_ARCH}")
+          ./gradlew "-Pversion=${{ needs.semver.outputs.GITVERSION_SEMVER }}" --info filterResourcesCopy2 jpackageInterfere
 
       - name: Check after app-image modification
         run: |
@@ -256,7 +281,15 @@ jobs:
       - name: Build package
         run: |
           # PowerShell
-          jpackage --app-image app/build/app-image/SettlersRemake --name SettlersRemake --app-version "${{ needs.semver.outputs.GITVERSION_MAJORMINORPATCH }}" --dest app/build/distributions --resource-dir app/build/resources/jpackage --win-shortcut
+          Set-PSDebug -Trace 1
+          $JAVA_HOME=[System.Environment]::GetEnvironmentVariable("JAVA_HOME_25_${env:RUNNER_ARCH}")
+          & ${JAVA_HOME}\bin\jpackage `
+            ${{ needs.semver.outputs.JPACKAGE_VERBOSE_OPTION }} `
+            --type msi `
+            --app-image app/build/app-image/SettlersRemake `
+            --dest app/build/distributions `
+            --resource-dir app/build/resources/jpackage `
+            --win-shortcut
 
       - name: Check after app-image creation
         run: |
@@ -270,27 +303,24 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: SettlersRemake-Windows
-          path: app/build/distributions/*.exe
+          path: app/build/distributions/*.msi
 
   package-MacOS:
     needs:
       - semver
       - build
     runs-on: macos-latest
-    env:
-      GITVERSION_SEMVER: ${{ needs.semver.outputs.GITVERSION_SEMVER }}
-      GITVERSION_MAJORMINORPATCH: ${{ needs.semver.outputs.GITVERSION_MAJORMINORPATCH }}
-      MACOS_MAJORMINORPATCH: ${{ needs.semver.outputs.MACOS_MAJORMINORPATCH }}
-
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Setup JDK 17
+      - name: Setup JDKs
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
+          java-version: |
+            17
+            25
           distribution: 'temurin'
 
       - name: Download settlers-installer-generic
@@ -319,17 +349,19 @@ jobs:
         run: |
           set -x
           pushd .;cd app/build/jpackage_input;unzip ../distributions/*.zip;popd
-          jpackage \
+          JAVA_HOME_ENV_VAR_NAME=JAVA_HOME_25_${RUNNER_ARCH}
+          ${!JAVA_HOME_ENV_VAR_NAME}/bin/jpackage --version
+          ${!JAVA_HOME_ENV_VAR_NAME}/bin/jpackage \
+            ${{ needs.semver.outputs.JPACKAGE_VERBOSE_OPTION }} \
             --type app-image \
             --dest app/build/app-image \
             -i "app/build/jpackage_input/app-${{ needs.semver.outputs.GITVERSION_SEMVER }}/lib" \
             --main-jar "app-${{ needs.semver.outputs.GITVERSION_SEMVER }}.jar" \
             --main-class settlers.installer.App \
             --name SettlersRemake \
-            --app-version "${{ needs.semver.outputs.MACOS_MAJORMINORPATCH }}" \
+            --app-version "${{ needs.semver.outputs.APP_VERSION_MACOS }}" \
             --description 'Settlers 3 remake - see https://github.com/HiranChaudhuri/settlers-installer' \
             --vendor Hiran \
-            --icon "./app/src/main/resources/images/siedler3-helme-logo.png" \
             --resource-dir "app/build/resources/jpackage" \
 
       - name: Check after create app-image
@@ -339,7 +371,8 @@ jobs:
       - name: Modify app-image
         run: |
           set -x
-          ./gradlew -Pversion=${{ needs.semver.outputs.GITVERSION_SEMVER }} --info filterResourcesCopy1 filterResourcesCopy2 jpackageInterfere
+          JAVA_HOME_ENV_VAR_NAME=JAVA_HOME_17_${RUNNER_ARCH}
+          JAVA_HOME=${!JAVA_HOME_ENV_VAR_NAME} ./gradlew -Pversion=${{ needs.semver.outputs.GITVERSION_SEMVER }} --info filterResourcesCopy2 jpackageInterfere
 
       - name: Check after modify app-image
         run: |
@@ -348,10 +381,10 @@ jobs:
       - name: Build package
         run: |
           set -x
-          jpackage \
+          JAVA_HOME_ENV_VAR_NAME=JAVA_HOME_25_${RUNNER_ARCH}
+          ${!JAVA_HOME_ENV_VAR_NAME}/bin/jpackage \
+            ${{ needs.semver.outputs.JPACKAGE_VERBOSE_OPTION }} \
             --app-image app/build/app-image/SettlersRemake.app \
-            --name SettlersRemake \
-            --app-version "${{ needs.semver.outputs.MACOS_MAJORMINORPATCH }}" \
             --dest app/build/distributions \
             --resource-dir app/build/resources/jpackage
 
